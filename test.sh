@@ -8,32 +8,41 @@ function hit() {
     echo
 }
 
-echo "== IDP METADATA =="
-hit http://localhost/idp/realms/pid-issuer-realm/.well-known/openid-configuration
+function get_access_token() {
+    echo "== IDP METADATA =="
+    hit http://localhost/idp/realms/pid-issuer-realm/.well-known/openid-configuration
 
-echo "== GET ACCESS TOKEN FROM IDP =="
-TMP=$(mktemp)
-curl -k -s -XPOST https://localhost/idp/realms/pid-issuer-realm/protocol/openid-connect/token \
-     -H "Content-Type: application/x-www-form-urlencoded" \
-     -d "grant_type=password" \
-     -d "username=tneal" \
-     -d "password=password" \
-     -d "scope=openid eu.europa.ec.eudiw.pid_mso_mdoc eu.europa.ec.eudiw.pid_vc_sd_jwt org.iso.18013.5.1.mDL" \
-     -d "client_id=wallet-dev" --output ${TMP}
-ACCESS_TOKEN=$(cat ${TMP} | jq -r .access_token)
-echo ACCESS_TOKEN: ${ACCESS_TOKEN}
-echo DECODED:
-echo ${ACCESS_TOKEN} | cut -d '.' -f 2 | base64 --decode | jq 
-echo
+    echo "== GET ACCESS TOKEN FROM IDP =="
+    TMP=$(mktemp)
+    curl -k -s -XPOST https://localhost/idp/realms/pid-issuer-realm/protocol/openid-connect/token \
+	 -H "Content-Type: application/x-www-form-urlencoded" \
+	 -d "grant_type=password" \
+	 -d "username=tneal" \
+	 -d "password=password" \
+	 -d "scope=openid eu.europa.ec.eudiw.pid_mso_mdoc eu.europa.ec.eudiw.pid_vc_sd_jwt org.iso.18013.5.1.mDL" \
+	 -d "client_id=wallet-dev" --output ${TMP}
+    ACCESS_TOKEN=$(cat ${TMP} | ${JQ} -r .access_token)
+    echo ACCESS_TOKEN: ${ACCESS_TOKEN}
+    echo DECODED:
+    echo ${ACCESS_TOKEN} | cut -d '.' -f 2 | base64 --decode | ${JQ}
+    echo
+}
+
+if [ "$1" == "" ]; then
+    get_access_token
+else
+    ACCESS_TOKEN="$1"
+    echo ACCESS_TOKEN: ${ACCESS_TOKEN}
+fi
 
 echo "== GET USERINFO (IDP) =="
-curl -k -s https://localhost/idp/realms/pid-issuer-realm/protocol/openid-connect/userinfo \
+curl -k -s ${ISSUER_AUTHORIZATIONSERVER_USERINFO} \
      -H "Content-type: application/json" -H "Accept: application/json" -H "Authorization: Bearer ${ACCESS_TOKEN}" | ${JQ}
 echo
 
 echo "== INTROSPECT TOKEN (IDP) =="
-curl -k -s -XPOST https://localhost/idp/realms/pid-issuer-realm/protocol/openid-connect/token/introspect -d "token=${ACCESS_TOKEN}" \
-     -H "Content-Type: application/x-www-form-urlencoded" -u "pid-issuer-srv:zIKAV9DIIIaJCzHCVBPlySgU8KgY68U2" | ${JQ}
+curl -k -s -XPOST ${ISSUER_AUTHORIZATIONSERVER_INTROSPECTION} -d "token=${ACCESS_TOKEN}" \
+     -H "Content-Type: application/x-www-form-urlencoded" -u "${SPRING_SECURITY_OAUTH2_RESOURCESERVER_OPAQUETOKEN_CLIENT_ID}:${SPRING_SECURITY_OAUTH2_RESOURCESERVER_OPAQUETOKEN_CLIENT_SECRET}" | ${JQ}
 echo
 
 ISSUER="http://localhost:8080"
@@ -107,6 +116,7 @@ echo
 echo "== PID REQUEST (mso-mdoc) =="
 PROOF_JWT=$(./create_proof_jwt.py ${C_NONCE})
 MSD_MDOC_OUT=$(mktemp)
+
 curl -s -XPOST ${ISSUER}/wallet/credentialEndpoint \
     -H "Content-type: application/json" -H "Accept: application/json" -H "Authorization: Bearer ${ACCESS_TOKEN}" \
     --data '{
@@ -124,6 +134,7 @@ echo
 
 echo "== mDL REQUEST (mso_mdoc/mdl) =="
 PROOF_JWT=$(./create_proof_jwt.py ${C_NONCE})
+
 curl -s -XPOST ${ISSUER}/wallet/credentialEndpoint \
     -H "Content-type: application/json" -H "Accept: application/json" -H "Authorization: Bearer ${ACCESS_TOKEN}" \
     --data '{

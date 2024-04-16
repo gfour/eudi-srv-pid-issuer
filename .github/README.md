@@ -32,5 +32,6 @@ source shell.env
 * Terminal 3: when the servers above have started up, run the test script:
 ```
 source .venv/bin/activate
+source shell.env
 ./test.sh
 ```
