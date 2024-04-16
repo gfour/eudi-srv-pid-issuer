@@ -8,5 +8,5 @@ ERROR=$?
 
 exec 3<&-
 exec 3>&-
-
+exit 0
 exit $ERROR
