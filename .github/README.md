@@ -17,19 +17,20 @@ pip install pyjwt==2.0.1 cryptography==3.4.8
 
 Open 3 terminals:
 
-Terminal 1: run the Docker containers that will start the Keycloak authentication server:
+* Terminal 1: run the Docker containers that will start the Keycloak authentication server:
 ```
 cd docker-compose
 docker compose up
 ```
 
-Terminal 2: run the development server:
+* Terminal 2: run the development server:
 ```
 source shell.env
 ./gradlew bootRun
 ```
 
-Terminal 3: when the servers above have started up, run the test script:
+* Terminal 3: when the servers above have started up, run the test script:
 ```
+source .venv/bin/activate
 ./test.sh
 ```
